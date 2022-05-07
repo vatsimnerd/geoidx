@@ -4,7 +4,7 @@ import (
 	"sync"
 
 	"github.com/dhconnelly/rtreego"
-	"github.com/vatsimnerd/geoidx/set"
+	"github.com/vatsimnerd/util/set"
 )
 
 type Index struct {

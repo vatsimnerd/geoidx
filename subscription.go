@@ -4,7 +4,7 @@ import (
 	"fmt"
 
 	"github.com/google/uuid"
-	"github.com/vatsimnerd/geoidx/set"
+	"github.com/vatsimnerd/util/set"
 )
 
 type EventType int
