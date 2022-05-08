@@ -4,6 +4,7 @@ import (
 	"fmt"
 
 	"github.com/google/uuid"
+	"github.com/sirupsen/logrus"
 	"github.com/vatsimnerd/util/set"
 )
 
@@ -40,6 +41,10 @@ func newSubscription(idx *Index, chSize int) *Subscription {
 }
 
 func (s *Subscription) SetBounds(bounds Rect) {
+	l := log.WithFields(logrus.Fields{
+		"func":   "SetBounds",
+		"sub_id": s.id,
+	})
 	// Gather old objects (to remove)
 	toRemove := set.New[string]()
 	for _, box := range s.subBoxes {
@@ -47,6 +52,7 @@ func (s *Subscription) SetBounds(bounds Rect) {
 			toRemove.Add(obj.id)
 		}
 	}
+	l.Debugf("collected %d objects to remove", toRemove.Size())
 
 	// Remove old boxes
 	s.removeBoxes()
@@ -58,19 +64,25 @@ func (s *Subscription) SetBounds(bounds Rect) {
 			toAdd.Add(obj.id)
 		}
 	}
+	l.Debugf("collected %d objects to add", toAdd.Size())
 
 	common := toAdd.Intersection(toRemove)
 	// - Subtract old from new -> get final set of objects to add
 	toAdd = toAdd.Subtract(common)
 	// - Subtract new from old -> get final set of objects to remove
 	toRemove = toRemove.Subtract(common)
+	l.Debugf("calculated diff, %d objects to remove, %d objects to add",
+		toRemove.Size(),
+		toAdd.Size())
 
+	l.Debug("emitting set")
 	// - Notify set/delete
 	toAdd.Iter(func(id string) {
 		obj := s.idx.GetObjectByID(id)
 		s.setObject(obj)
 	})
 
+	l.Debug("emitting delete")
 	toRemove.Iter(func(id string) {
 		obj := s.idx.GetObjectByID(id)
 		s.deleteObject(obj)
@@ -100,6 +112,10 @@ func (s *Subscription) send(event Event) {
 }
 
 func (s *Subscription) removeBoxes() {
+	log.WithFields(logrus.Fields{
+		"func":   "removeBoxes",
+		"sub_id": s.id,
+	}).Debug("removing boxes")
 	for _, box := range s.subBoxes {
 		s.idx.DeleteNoNotify(box)
 	}
@@ -107,6 +123,12 @@ func (s *Subscription) removeBoxes() {
 }
 
 func (s *Subscription) setupBoxes(bounds Rect) {
+	log.WithFields(logrus.Fields{
+		"func":   "setupBoxes",
+		"sub_id": s.id,
+		"bounds": bounds,
+	}).Debug("setting up boxes")
+
 	rects := split(bounds)
 	boxes := make([]*Object, len(rects))
 	for i, rect := range rects {
@@ -119,6 +141,10 @@ func (s *Subscription) setupBoxes(bounds Rect) {
 }
 
 func (s *Subscription) release() {
+	log.WithFields(logrus.Fields{
+		"func":   "release",
+		"sub_id": s.id,
+	}).Debug("release subscription")
 	s.removeBoxes()
 	close(s.eventChan)
 }

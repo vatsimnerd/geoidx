@@ -1,10 +1,16 @@
 package geoidx
 
 import (
+	"reflect"
 	"sync"
 
 	"github.com/dhconnelly/rtreego"
+	"github.com/sirupsen/logrus"
 	"github.com/vatsimnerd/util/set"
+)
+
+var (
+	log = logrus.WithField("module", "geoidx")
 )
 
 type Index struct {
@@ -23,20 +29,35 @@ func NewIndex() *Index {
 }
 
 func (i *Index) UpsertNoNotify(obj *Object) {
+	l := log.WithFields(logrus.Fields{
+		"func": "UpsertNoNotify",
+		"obj":  obj,
+	})
+	l.Debug("perform upsert")
+
 	i.lock.Lock()
 	defer i.lock.Unlock()
 
 	if ex, found := i.idIdx[obj.id]; found {
+		l.Debug("existing object found")
 		i.Delete(ex)
 	}
 
+	l.Debug("inserting to tree")
 	i.tree.Insert(obj)
+	l.Debug("inserting to id index")
 	i.idIdx[obj.id] = obj
 }
 
 func (i *Index) Upsert(obj *Object) {
+	l := log.WithFields(logrus.Fields{
+		"func": "Upsert",
+		"obj":  obj,
+	})
 	i.UpsertNoNotify(obj)
+
 	// find all sub boxes
+	l.Debug("searching for subscription boxes")
 	boxes := i.searchByRectUnsafe(obj.bounds, fltSubBoxes)
 	// reduce them to a set of sub ids
 	subIDs := set.New[string]()
@@ -46,6 +67,7 @@ func (i *Index) Upsert(obj *Object) {
 		}
 	}
 
+	l.Debugf("found %d subscriptions, notifying", subIDs.Size())
 	subIDs.Iter(func(id string) {
 		if sub, found := i.subs[id]; found {
 			sub.setObject(obj)
@@ -54,16 +76,28 @@ func (i *Index) Upsert(obj *Object) {
 }
 
 func (i *Index) DeleteNoNotify(obj *Object) {
+	l := log.WithFields(logrus.Fields{
+		"func": "DeleteNoNotify",
+		"obj":  obj,
+	})
 	i.lock.Lock()
 	defer i.lock.Unlock()
 
+	l.Debug("deleting from tree")
 	i.tree.Delete(obj)
+	l.Debug("deleting from id index")
 	delete(i.idIdx, obj.id)
 }
 
 func (i *Index) Delete(obj *Object) {
+	l := log.WithFields(logrus.Fields{
+		"func": "Delete",
+		"obj":  obj,
+	})
 	i.DeleteNoNotify(obj)
+
 	// find all sub boxes
+	l.Debug("searching for subscription boxes")
 	boxes := i.searchByRectUnsafe(obj.bounds, fltSubBoxes)
 	// reduce them to a set of sub ids
 	subIDs := set.New[string]()
@@ -73,6 +107,7 @@ func (i *Index) Delete(obj *Object) {
 		}
 	}
 
+	l.Debugf("found %d subscriptions, notifying", subIDs.Size())
 	subIDs.Iter(func(id string) {
 		if sub, found := i.subs[id]; found {
 			sub.deleteObject(obj)
@@ -81,11 +116,22 @@ func (i *Index) Delete(obj *Object) {
 }
 
 func (i *Index) searchByRectUnsafe(rect Rect, filters ...rtreego.Filter) []*Object {
+	l := log.WithFields(logrus.Fields{
+		"func":          "searchByRectUnsafe",
+		"rect":          rect,
+		"filters_count": len(filters),
+	})
+
+	l.Debug("performing search")
 	objects := make([]*Object, 0)
-	for _, spatial := range i.tree.SearchIntersect(rect.ToRTreeRect(), filters...) {
+	spatials := i.tree.SearchIntersect(rect.ToRTreeRect(), filters...)
+	l.Debugf("found %d objects in tree", len(spatials))
+	for _, spatial := range spatials {
 		obj, ok := spatial.(*Object)
 		if ok {
 			objects = append(objects, obj)
+		} else {
+			l.WithField("type", reflect.TypeOf(obj).String()).Error("unexpected object type")
 		}
 	}
 	return objects
