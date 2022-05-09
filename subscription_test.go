@@ -223,3 +223,63 @@ func TestSubFilters2(t *testing.T) {
 	default:
 	}
 }
+
+func TestMultipleUpsertSameObject(t *testing.T) {
+	i := NewIndex()
+	sub := i.Subscribe(1024)
+	ch := sub.Events()
+
+	sub.SetBounds(MakeRect(0, 0, 2, 2))
+
+	select {
+	case e := <-ch:
+		t.Errorf("unexpected event %v on channel", e)
+		return
+	default:
+	}
+
+	obj := NewObject("1", MakeRect(1, 1, 2, 2), "test")
+	i.Upsert(obj)
+
+	select {
+	case e := <-ch:
+		if e.Type != EventTypeSet {
+			t.Errorf("unexpected event type, expected Set got %v", e.Type)
+		}
+		if obj.Value() != "test" {
+			t.Errorf("unexpected object, expected 'test', got %v", obj.Value())
+		}
+		return
+	default:
+		t.Error("expected event on channel")
+	}
+
+	select {
+	case e := <-ch:
+		t.Errorf("unexpected event %v on channel", e)
+		return
+	default:
+	}
+
+	i.Upsert(obj)
+
+	select {
+	case e := <-ch:
+		if e.Type != EventTypeSet {
+			t.Errorf("unexpected event type, expected Set got %v", e.Type)
+		}
+		if obj.Value() != "test" {
+			t.Errorf("unexpected object, expected 'test', got %v", obj.Value())
+		}
+		return
+	default:
+		t.Error("expected event on channel")
+	}
+
+	select {
+	case e := <-ch:
+		t.Errorf("unexpected event %v on channel", e)
+		return
+	default:
+	}
+}

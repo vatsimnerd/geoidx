@@ -40,7 +40,7 @@ func (i *Index) UpsertNoNotify(obj *Object) {
 
 	if ex, found := i.idIdx[obj.id]; found {
 		l.Debug("existing object found")
-		i.Delete(ex)
+		i.deleteNoNotifyUnsafe(ex)
 	}
 
 	l.Debug("inserting to tree")
@@ -76,13 +76,16 @@ func (i *Index) Upsert(obj *Object) {
 }
 
 func (i *Index) DeleteNoNotify(obj *Object) {
-	l := log.WithFields(logrus.Fields{
-		"func": "DeleteNoNotify",
-		"obj":  obj,
-	})
 	i.lock.Lock()
 	defer i.lock.Unlock()
+	i.deleteNoNotifyUnsafe(obj)
+}
 
+func (i *Index) deleteNoNotifyUnsafe(obj *Object) {
+	l := log.WithFields(logrus.Fields{
+		"func": "deleteNoNotifyUnsafe",
+		"obj":  obj,
+	})
 	l.Debug("deleting from tree")
 	i.tree.Delete(obj)
 	l.Debug("deleting from id index")
