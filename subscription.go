@@ -43,6 +43,10 @@ func newSubscription(idx *Index, chSize int) *Subscription {
 	return sub
 }
 
+func (s *Subscription) ID() string {
+	return s.id
+}
+
 func (s *Subscription) SetFilters(filters ...rtreego.Filter) {
 	toRemove := s.findTrackedObjectsIDs()
 	s.filters = filters
