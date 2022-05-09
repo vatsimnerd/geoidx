@@ -3,6 +3,7 @@ package geoidx
 import (
 	"fmt"
 
+	"github.com/dhconnelly/rtreego"
 	"github.com/google/uuid"
 	"github.com/sirupsen/logrus"
 	"github.com/vatsimnerd/util/set"
@@ -25,6 +26,7 @@ type Subscription struct {
 	idx       *Index
 	subBoxes  []*Object
 	eventChan chan Event
+	filters   []rtreego.Filter
 }
 
 func newSubscription(idx *Index, chSize int) *Subscription {
@@ -35,9 +37,31 @@ func newSubscription(idx *Index, chSize int) *Subscription {
 		idx:       idx,
 		subBoxes:  nil,
 		eventChan: make(chan Event, chSize),
+		filters:   make([]rtreego.Filter, 0),
 	}
 
 	return sub
+}
+
+func (s *Subscription) SetFilters(filters []rtreego.Filter) {
+	toRemove := s.findTrackedObjectsIDs()
+	s.filters = filters
+	toAdd := s.findTrackedObjectsIDs()
+	s.notifySetDelete(toAdd, toRemove)
+
+}
+
+func (s *Subscription) findTrackedObjectsIDs() *set.Set[string] {
+	filters := []rtreego.Filter{fltNonSubBoxes}
+	filters = append(filters, s.filters...)
+
+	ids := set.New[string]()
+	for _, box := range s.subBoxes {
+		for _, obj := range s.idx.SearchByObject(box, filters...) {
+			ids.Add(obj.id)
+		}
+	}
+	return ids
 }
 
 func (s *Subscription) SetBounds(bounds Rect) {
@@ -46,31 +70,27 @@ func (s *Subscription) SetBounds(bounds Rect) {
 		"sub_id": s.id,
 	})
 	// Gather old objects (to remove)
-	toRemove := set.New[string]()
-	for _, box := range s.subBoxes {
-		for _, obj := range s.idx.SearchByObject(box) {
-			toRemove.Add(obj.id)
-		}
-	}
+
+	toRemove := s.findTrackedObjectsIDs()
 	l.Debugf("collected %d objects to remove", toRemove.Size())
 
 	// Remove old boxes
 	s.removeBoxes()
 	s.setupBoxes(bounds)
 	// Gather new objects (to add)
-	toAdd := set.New[string]()
-	for _, box := range s.subBoxes {
-		for _, obj := range s.idx.SearchByObject(box, fltNonSubBoxes) {
-			toAdd.Add(obj.id)
-		}
-	}
+	toAdd := s.findTrackedObjectsIDs()
 	l.Debugf("collected %d objects to add", toAdd.Size())
 
-	common := toAdd.Intersection(toRemove)
-	// - Subtract old from new -> get final set of objects to add
-	toAdd = toAdd.Subtract(common)
-	// - Subtract new from old -> get final set of objects to remove
-	toRemove = toRemove.Subtract(common)
+	s.notifySetDelete(toAdd, toRemove)
+}
+
+func (s *Subscription) notifySetDelete(toAdd *set.Set[string], toRemove *set.Set[string]) {
+	l := log.WithFields(logrus.Fields{
+		"func":   "notifySetDelete",
+		"sub_id": s.id,
+	})
+
+	toAdd, toRemove = reduceSets(toAdd, toRemove)
 	l.Debugf("calculated diff, %d objects to remove, %d objects to add",
 		toRemove.Size(),
 		toAdd.Size())
@@ -87,6 +107,16 @@ func (s *Subscription) SetBounds(bounds Rect) {
 		obj := s.idx.GetObjectByID(id)
 		s.deleteObject(obj)
 	})
+}
+
+func (s *Subscription) filterObject(obj *Object) *Object {
+	for _, flt := range s.filters {
+		refuse, abort := flt(nil, obj)
+		if refuse || abort {
+			return nil
+		}
+	}
+	return obj
 }
 
 func (s *Subscription) setObject(obj *Object) {
@@ -147,4 +177,13 @@ func (s *Subscription) release() {
 	}).Debug("release subscription")
 	s.removeBoxes()
 	close(s.eventChan)
+}
+
+func reduceSets[T comparable](add *set.Set[T], remove *set.Set[T]) (newAdd *set.Set[T], newRemove *set.Set[T]) {
+	common := add.Intersection(remove)
+	// - Subtract old from new -> get final set of objects to add
+	newAdd = add.Subtract(common)
+	// - Subtract new from old -> get final set of objects to remove
+	newRemove = remove.Subtract(common)
+	return
 }

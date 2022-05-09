@@ -70,7 +70,7 @@ func (i *Index) Upsert(obj *Object) {
 	l.Debugf("found %d subscriptions, notifying", subIDs.Size())
 	subIDs.Iter(func(id string) {
 		if sub, found := i.subs[id]; found {
-			sub.setObject(obj)
+			sub.setObject(sub.filterObject(obj))
 		}
 	})
 }
@@ -110,7 +110,7 @@ func (i *Index) Delete(obj *Object) {
 	l.Debugf("found %d subscriptions, notifying", subIDs.Size())
 	subIDs.Iter(func(id string) {
 		if sub, found := i.subs[id]; found {
-			sub.deleteObject(obj)
+			sub.deleteObject(sub.filterObject(obj))
 		}
 	})
 }
