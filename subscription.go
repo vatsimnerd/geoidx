@@ -43,12 +43,11 @@ func newSubscription(idx *Index, chSize int) *Subscription {
 	return sub
 }
 
-func (s *Subscription) SetFilters(filters []rtreego.Filter) {
+func (s *Subscription) SetFilters(filters ...rtreego.Filter) {
 	toRemove := s.findTrackedObjectsIDs()
 	s.filters = filters
 	toAdd := s.findTrackedObjectsIDs()
 	s.notifySetDelete(toAdd, toRemove)
-
 }
 
 func (s *Subscription) findTrackedObjectsIDs() *set.Set[string] {
