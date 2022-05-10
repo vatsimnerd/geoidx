@@ -54,6 +54,20 @@ func (s *Subscription) SetFilters(filters ...rtreego.Filter) {
 	s.notifySetDelete(toAdd, toRemove)
 }
 
+func (s *Subscription) TrackID(id string) {
+	toRemove := s.findTrackedObjectsIDs()
+	s.idx.trackID(s, id)
+	toAdd := s.findTrackedObjectsIDs()
+	s.notifySetDelete(toAdd, toRemove)
+}
+
+func (s *Subscription) UntrackID(id string) {
+	toRemove := s.findTrackedObjectsIDs()
+	s.idx.untrackID(s, id)
+	toAdd := s.findTrackedObjectsIDs()
+	s.notifySetDelete(toAdd, toRemove)
+}
+
 func (s *Subscription) findTrackedObjectsIDs() *set.Set[string] {
 	filters := []rtreego.Filter{fltNonSubBoxes}
 	filters = append(filters, s.filters...)
@@ -63,6 +77,10 @@ func (s *Subscription) findTrackedObjectsIDs() *set.Set[string] {
 		for _, obj := range s.idx.SearchByObject(box, filters...) {
 			ids.Add(obj.id)
 		}
+	}
+
+	if trackedIDs, found := s.idx.sub2ids[s.id]; found {
+		ids = ids.Union(trackedIDs)
 	}
 	return ids
 }

@@ -14,17 +14,21 @@ var (
 )
 
 type Index struct {
-	tree  *rtreego.Rtree
-	idIdx map[string]*Object
-	subs  map[string]*Subscription
-	lock  sync.RWMutex
+	tree    *rtreego.Rtree
+	idIdx   map[string]*Object
+	subs    map[string]*Subscription
+	id2subs map[string]*set.Set[string]
+	sub2ids map[string]*set.Set[string]
+	lock    sync.RWMutex
 }
 
 func NewIndex() *Index {
 	return &Index{
-		tree:  rtreego.NewTree(2, 25, 50),
-		idIdx: make(map[string]*Object),
-		subs:  make(map[string]*Subscription),
+		tree:    rtreego.NewTree(2, 25, 50),
+		idIdx:   make(map[string]*Object),
+		subs:    make(map[string]*Subscription),
+		id2subs: make(map[string]*set.Set[string]),
+		sub2ids: make(map[string]*set.Set[string]),
 	}
 }
 
@@ -65,6 +69,11 @@ func (i *Index) Upsert(obj *Object) {
 		if sub, ok := box.val.(*Subscription); ok {
 			subIDs.Add(sub.id)
 		}
+	}
+
+	// add subscriptions tracking the object
+	if subSet, found := i.id2subs[obj.id]; found {
+		subIDs = subIDs.Union(subSet)
 	}
 
 	l.Debugf("found %d subscriptions, notifying", subIDs.Size())
@@ -108,6 +117,11 @@ func (i *Index) Delete(obj *Object) {
 		if sub, ok := box.val.(*Subscription); ok {
 			subIDs.Add(sub.id)
 		}
+	}
+
+	// add subscriptions tracking the object
+	if subSet, found := i.id2subs[obj.id]; found {
+		subIDs = subIDs.Union(subSet)
 	}
 
 	l.Debugf("found %d subscriptions, notifying", subIDs.Size())
@@ -186,4 +200,35 @@ func (i *Index) Unsubscribe(sub *Subscription) {
 	i.lock.Lock()
 	defer i.lock.Unlock()
 	delete(i.subs, sub.id)
+}
+
+func (i *Index) trackID(sub *Subscription, id string) {
+	i.lock.Lock()
+	defer i.lock.Unlock()
+
+	subset, found := i.id2subs[id]
+	if !found {
+		subset = set.New[string]()
+		i.id2subs[id] = subset
+	}
+	subset.Add(sub.id)
+
+	idset, found := i.sub2ids[sub.id]
+	if !found {
+		idset = set.New[string]()
+		i.sub2ids[sub.id] = idset
+	}
+	idset.Add(id)
+}
+
+func (i *Index) untrackID(sub *Subscription, id string) {
+	i.lock.Lock()
+	defer i.lock.Unlock()
+
+	if subset, found := i.id2subs[id]; found {
+		subset.Delete(sub.id)
+	}
+	if idset, found := i.sub2ids[sub.id]; found {
+		idset.Delete(id)
+	}
 }
