@@ -132,7 +132,7 @@ func (i *Index) Delete(obj *Object) {
 	})
 }
 
-func (i *Index) searchByRectUnsafe(rect Rect, filters ...rtreego.Filter) []*Object {
+func (i *Index) searchByRectUnsafe(rect Rect, filters ...Filter) []*Object {
 	l := log.WithFields(logrus.Fields{
 		"func":          "searchByRectUnsafe",
 		"rect":          rect,
@@ -141,7 +141,7 @@ func (i *Index) searchByRectUnsafe(rect Rect, filters ...rtreego.Filter) []*Obje
 
 	l.Debug("performing search")
 	objects := make([]*Object, 0)
-	spatials := i.tree.SearchIntersect(rect.ToRTreeRect(), filters...)
+	spatials := i.tree.SearchIntersect(rect.ToRTreeRect(), FilterList(filters).toRTreeGoFilterList()...)
 	l.Debugf("found %d objects in tree", len(spatials))
 	for _, spatial := range spatials {
 		obj, ok := spatial.(*Object)
@@ -154,26 +154,26 @@ func (i *Index) searchByRectUnsafe(rect Rect, filters ...rtreego.Filter) []*Obje
 	return objects
 }
 
-func (i *Index) SearchByRect(rect Rect, filters ...rtreego.Filter) []*Object {
+func (i *Index) SearchByRect(rect Rect, filters ...Filter) []*Object {
 	i.lock.RLock()
 	defer i.lock.RUnlock()
 	return i.searchByRectUnsafe(rect, filters...)
 }
 
-func (i *Index) SearchByObject(obj *Object, filters ...rtreego.Filter) []*Object {
+func (i *Index) SearchByObject(obj *Object, filters ...Filter) []*Object {
 	if obj == nil {
 		return nil
 	}
 
 	if filters == nil {
-		filters = []rtreego.Filter{}
+		filters = []Filter{}
 	}
 	filters = append(filters, fltIDNMatch(obj.id))
 
 	return i.SearchByRect(obj.bounds, filters...)
 }
 
-func (i *Index) SearchByObjectID(id string, filters ...rtreego.Filter) []*Object {
+func (i *Index) SearchByObjectID(id string, filters ...Filter) []*Object {
 	i.lock.RLock()
 	obj := i.idIdx[id]
 	i.lock.RUnlock()
