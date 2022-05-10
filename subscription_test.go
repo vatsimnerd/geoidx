@@ -2,8 +2,6 @@ package geoidx
 
 import (
 	"testing"
-
-	"github.com/dhconnelly/rtreego"
 )
 
 func expectNoEvents(t *testing.T, ch <-chan Event) bool {
@@ -79,9 +77,8 @@ func TestSubFilters1(t *testing.T) {
 
 	// should not pass any object
 	sub.SetFilters(
-		func(results []rtreego.Spatial, object rtreego.Spatial) (refuse bool, abort bool) {
-			refuse = true
-			return
+		func(obj *Object) bool {
+			return false
 		},
 	)
 	sub.SetBounds(MakeRect(0, 0, 2, 2))
@@ -110,9 +107,8 @@ func TestSubFilters2(t *testing.T) {
 
 	// should not pass any object
 	sub.SetFilters(
-		func(results []rtreego.Spatial, object rtreego.Spatial) (refuse bool, abort bool) {
-			refuse = true
-			return
+		func(obj *Object) bool {
+			return false
 		},
 	)
 

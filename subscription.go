@@ -3,7 +3,6 @@ package geoidx
 import (
 	"fmt"
 
-	"github.com/dhconnelly/rtreego"
 	"github.com/google/uuid"
 	"github.com/sirupsen/logrus"
 	"github.com/vatsimnerd/util/set"
@@ -26,7 +25,7 @@ type Subscription struct {
 	idx       *Index
 	subBoxes  []*Object
 	eventChan chan Event
-	filters   []rtreego.Filter
+	filters   []Filter
 }
 
 func newSubscription(idx *Index, chSize int) *Subscription {
@@ -37,7 +36,7 @@ func newSubscription(idx *Index, chSize int) *Subscription {
 		idx:       idx,
 		subBoxes:  nil,
 		eventChan: make(chan Event, chSize),
-		filters:   make([]rtreego.Filter, 0),
+		filters:   make([]Filter, 0),
 	}
 
 	return sub
@@ -47,7 +46,7 @@ func (s *Subscription) ID() string {
 	return s.id
 }
 
-func (s *Subscription) SetFilters(filters ...rtreego.Filter) {
+func (s *Subscription) SetFilters(filters ...Filter) {
 	toRemove := s.findTrackedObjectsIDs()
 	s.filters = filters
 	toAdd := s.findTrackedObjectsIDs()
@@ -69,7 +68,7 @@ func (s *Subscription) UntrackID(id string) {
 }
 
 func (s *Subscription) findTrackedObjectsIDs() *set.Set[string] {
-	filters := []rtreego.Filter{fltNonSubBoxes}
+	filters := []Filter{fltNonSubBoxes}
 	filters = append(filters, s.filters...)
 
 	ids := set.New[string]()
@@ -132,8 +131,7 @@ func (s *Subscription) notifySetDelete(toAdd *set.Set[string], toRemove *set.Set
 
 func (s *Subscription) filterObject(obj *Object) *Object {
 	for _, flt := range s.filters {
-		refuse, abort := flt(nil, obj)
-		if refuse || abort {
+		if !flt(obj) {
 			return nil
 		}
 	}
