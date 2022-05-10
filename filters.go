@@ -8,7 +8,7 @@ type FilterList []Filter
 func (f Filter) toRTreeGoFilter() rtreego.Filter {
 	return func(results []rtreego.Spatial, object rtreego.Spatial) (refuse bool, abort bool) {
 		obj, ok := object.(*Object)
-		refuse = !ok || f(obj)
+		refuse = !ok || !f(obj)
 		return
 	}
 }
