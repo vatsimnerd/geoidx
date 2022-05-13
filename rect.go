@@ -3,13 +3,13 @@ package geoidx
 import "github.com/dhconnelly/rtreego"
 
 type Point struct {
-	Latitude  float64
-	Longitude float64
+	Latitude  float64 `json:"lat"`
+	Longitude float64 `json:"lng"`
 }
 
 type Rect struct {
-	SouthWest Point
-	NorthEast Point
+	SouthWest Point `json:"sw"`
+	NorthEast Point `json:"ne"`
 }
 
 const (

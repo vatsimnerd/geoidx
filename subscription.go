@@ -16,8 +16,8 @@ const (
 )
 
 type Event struct {
-	Type EventType
-	Obj  *Object
+	Type EventType `json:"type"`
+	Obj  *Object   `json:"obj"`
 }
 
 type Subscription struct {
