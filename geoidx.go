@@ -37,19 +37,19 @@ func (i *Index) UpsertNoNotify(obj *Object) {
 		"func": "UpsertNoNotify",
 		"obj":  obj,
 	})
-	l.Debug("perform upsert")
+	l.Trace("perform upsert")
 
 	i.lock.Lock()
 	defer i.lock.Unlock()
 
 	if ex, found := i.idIdx[obj.id]; found {
-		l.Debug("existing object found")
+		l.Trace("existing object found")
 		i.deleteNoNotifyUnsafe(ex)
 	}
 
-	l.Debug("inserting to tree")
+	l.Trace("inserting to tree")
 	i.tree.Insert(obj)
-	l.Debug("inserting to id index")
+	l.Trace("inserting to id index")
 	i.idIdx[obj.id] = obj
 }
 
@@ -61,7 +61,7 @@ func (i *Index) Upsert(obj *Object) {
 	i.UpsertNoNotify(obj)
 
 	// find all sub boxes
-	l.Debug("searching for subscription boxes")
+	l.Trace("searching for subscription boxes")
 	boxes := i.searchByRectUnsafe(obj.bounds, fltSubBoxes)
 	// reduce them to a set of sub ids
 	subIDs := set.New[string]()
@@ -76,7 +76,7 @@ func (i *Index) Upsert(obj *Object) {
 		subIDs = subIDs.Union(subSet)
 	}
 
-	l.Debugf("found %d subscriptions, notifying", subIDs.Size())
+	l.Tracef("found %d subscriptions, notifying", subIDs.Size())
 	subIDs.Iter(func(id string) {
 		if sub, found := i.subs[id]; found {
 			sub.setObject(sub.filterObject(obj))
@@ -95,9 +95,9 @@ func (i *Index) deleteNoNotifyUnsafe(obj *Object) {
 		"func": "deleteNoNotifyUnsafe",
 		"obj":  obj,
 	})
-	l.Debug("deleting from tree")
+	l.Trace("deleting from tree")
 	i.tree.Delete(obj)
-	l.Debug("deleting from id index")
+	l.Trace("deleting from id index")
 	delete(i.idIdx, obj.id)
 }
 
@@ -109,7 +109,7 @@ func (i *Index) Delete(obj *Object) {
 	i.DeleteNoNotify(obj)
 
 	// find all sub boxes
-	l.Debug("searching for subscription boxes")
+	l.Trace("searching for subscription boxes")
 	boxes := i.searchByRectUnsafe(obj.bounds, fltSubBoxes)
 	// reduce them to a set of sub ids
 	subIDs := set.New[string]()
@@ -124,7 +124,7 @@ func (i *Index) Delete(obj *Object) {
 		subIDs = subIDs.Union(subSet)
 	}
 
-	l.Debugf("found %d subscriptions, notifying", subIDs.Size())
+	l.Tracef("found %d subscriptions, notifying", subIDs.Size())
 	subIDs.Iter(func(id string) {
 		if sub, found := i.subs[id]; found {
 			sub.deleteObject(sub.filterObject(obj))
@@ -139,7 +139,6 @@ func (i *Index) searchByRectUnsafe(rect Rect, filters ...Filter) []*Object {
 		"filters_count": len(filters),
 	})
 
-	l.Debug("performing search")
 	objects := make([]*Object, 0)
 	spatials := i.tree.SearchIntersect(rect.ToRTreeRect(), FilterList(filters).toRTreeGoFilterList()...)
 	l.Debugf("found %d objects in tree", len(spatials))

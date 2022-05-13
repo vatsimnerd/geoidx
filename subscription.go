@@ -115,14 +115,14 @@ func (s *Subscription) notifySetDelete(toAdd *set.Set[string], toRemove *set.Set
 		toRemove.Size(),
 		toAdd.Size())
 
-	l.Debug("emitting set")
+	l.Trace("emitting set")
 	// - Notify set/delete
 	toAdd.Iter(func(id string) {
 		obj := s.idx.GetObjectByID(id)
 		s.setObject(obj)
 	})
 
-	l.Debug("emitting delete")
+	l.Trace("emitting delete")
 	toRemove.Iter(func(id string) {
 		obj := s.idx.GetObjectByID(id)
 		s.deleteObject(obj)
