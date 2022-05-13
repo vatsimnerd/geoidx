@@ -167,3 +167,17 @@ func TestTrackID(t *testing.T) {
 	// now the object is out of bounds and not tracked
 	expectNoEvents(t, ch)
 }
+
+func TestSubscribeAfterObjectUpsert(t *testing.T) {
+	i := NewIndex()
+	obj := NewObject("1", MakeRect(1, 1, 2, 2), "test")
+	i.Upsert(obj)
+	sub1 := i.Subscribe(1024)
+	sub1.SetBounds(MakeRect(0, 0, 2, 2))
+	ch := sub1.Events()
+
+	sub2 := i.Subscribe(1024)
+	sub2.SetBounds(MakeRect(0, 0, 2, 2))
+	expectEvent(t, ch, EventTypeSet, "test")
+	expectNoEvents(t, ch)
+}

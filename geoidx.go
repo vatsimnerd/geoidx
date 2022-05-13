@@ -79,7 +79,7 @@ func (i *Index) Upsert(obj *Object) {
 	l.Tracef("found %d subscriptions, notifying", subIDs.Size())
 	subIDs.Iter(func(id string) {
 		if sub, found := i.subs[id]; found {
-			sub.setObject(sub.filterObject(obj))
+			sub.emitSet(sub.filterObject(obj))
 		}
 	})
 }
@@ -127,7 +127,7 @@ func (i *Index) Delete(obj *Object) {
 	l.Tracef("found %d subscriptions, notifying", subIDs.Size())
 	subIDs.Iter(func(id string) {
 		if sub, found := i.subs[id]; found {
-			sub.deleteObject(sub.filterObject(obj))
+			sub.emitDelete(sub.filterObject(obj))
 		}
 	})
 }

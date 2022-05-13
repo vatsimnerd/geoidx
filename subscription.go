@@ -119,13 +119,13 @@ func (s *Subscription) notifySetDelete(toAdd *set.Set[string], toRemove *set.Set
 	// - Notify set/delete
 	toAdd.Iter(func(id string) {
 		obj := s.idx.GetObjectByID(id)
-		s.setObject(obj)
+		s.emitSet(obj)
 	})
 
 	l.Trace("emitting delete")
 	toRemove.Iter(func(id string) {
 		obj := s.idx.GetObjectByID(id)
-		s.deleteObject(obj)
+		s.emitDelete(obj)
 	})
 }
 
@@ -138,14 +138,14 @@ func (s *Subscription) filterObject(obj *Object) *Object {
 	return obj
 }
 
-func (s *Subscription) setObject(obj *Object) {
+func (s *Subscription) emitSet(obj *Object) {
 	if obj != nil {
 		event := Event{Type: EventTypeSet, Obj: obj}
 		s.send(event)
 	}
 }
 
-func (s *Subscription) deleteObject(obj *Object) {
+func (s *Subscription) emitDelete(obj *Object) {
 	if obj != nil {
 		event := Event{Type: EventTypeDelete, Obj: obj}
 		s.send(event)
