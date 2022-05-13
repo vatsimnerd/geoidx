@@ -141,7 +141,7 @@ func (i *Index) searchByRectUnsafe(rect Rect, filters ...Filter) []*Object {
 
 	objects := make([]*Object, 0)
 	spatials := i.tree.SearchIntersect(rect.ToRTreeRect(), FilterList(filters).toRTreeGoFilterList()...)
-	l.Debugf("found %d objects in tree", len(spatials))
+	l.Tracef("found %d objects in tree", len(spatials))
 	for _, spatial := range spatials {
 		obj, ok := spatial.(*Object)
 		if ok {
