@@ -57,3 +57,20 @@ func TestDelete(t *testing.T) {
 		t.Errorf("search is expected to return 0 object, got %d", len(objs))
 	}
 }
+
+func TestPartialIntersect(t *testing.T) {
+	i := NewIndex()
+	obj := NewObject("1", MakeRect(-1, -1, 1, 1), "test")
+	i.Upsert(obj)
+
+	objs := i.SearchByRect(MakeRect(0, 0, 2, 2))
+	if len(objs) != 1 {
+		t.Errorf("search is expected to return 1 object, got %d", len(objs))
+	}
+
+	i.Delete(obj)
+	objs = i.SearchByRect(MakeRect(0, 0, 2, 2))
+	if len(objs) != 0 {
+		t.Errorf("search is expected to return 0 object, got %d", len(objs))
+	}
+}
